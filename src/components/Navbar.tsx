@@ -43,9 +43,14 @@ const Navbar: React.FC = () => {
             HOME
           </Link>
           {auth && (
-            <Link to="/dashboard" className={`transition-all duration-300 hover:text-fsociety-primary ${location.pathname === '/dashboard' ? 'text-fsociety-primary' : 'text-gray-400'}`}>
-              DASHBOARD
-            </Link>
+            <>
+              <Link to="/dashboard" className={`transition-all duration-300 hover:text-fsociety-primary ${location.pathname === '/dashboard' ? 'text-fsociety-primary' : 'text-gray-400'}`}>
+                DASHBOARD
+              </Link>
+              <Link to="/panel" className={`transition-all duration-300 hover:text-fsociety-primary ${location.pathname === '/panel' ? 'text-fsociety-primary' : 'text-gray-400'}`}>
+                SECURE PANEL
+              </Link>
+            </>
           )}
         </nav>
 
