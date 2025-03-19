@@ -67,17 +67,6 @@ const Index: React.FC = () => {
               </motion.span>
             </h1>
             
-            <motion.p 
-              className="text-gray-400 mb-8 text-lg leading-relaxed"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.7 }}
-            >
-              Our mission is to free the world from the invisible chains of debt. 
-              We are hackers, activists, and vigilantes. We are legion. We do not forgive. 
-              We do not forget.
-            </motion.p>
-            
             <div className="hidden md:block">
               <motion.div 
                 className="font-mono text-xs text-gray-500 border-l-2 border-fsociety-primary pl-4 py-1"

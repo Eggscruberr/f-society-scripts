@@ -11,7 +11,6 @@ const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPasswordHint, setShowPasswordHint] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const navigate = useNavigate();
 
@@ -33,20 +32,25 @@ const LoginForm: React.FC = () => {
     setLoading(true);
     setError('');
     
-    // Simulate network request
-    setTimeout(() => {
-      const success = login(username, password);
-      
-      if (success) {
-        setLoginSuccess(true);
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1000); // Delay navigation to show the success animation
-      } else {
-        setError('Invalid username or password');
+    // Use the authentication system which now connects to MySQL
+    login(username, password)
+      .then(success => {
+        if (success) {
+          setLoginSuccess(true);
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 1000); // Delay navigation to show the success animation
+        } else {
+          setError('Invalid username or password');
+        }
+      })
+      .catch(err => {
+        setError('Authentication error: ' + (err.message || 'Unknown error'));
+        console.error('Authentication error:', err);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    }, 1000);
+      });
   };
 
   return (
@@ -212,37 +216,6 @@ const LoginForm: React.FC = () => {
           </motion.button>
         </form>
       )}
-      
-      <motion.div 
-        className="mt-6 text-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.3 }}
-      >
-        <button 
-          onClick={() => setShowPasswordHint(!showPasswordHint)}
-          className="text-gray-500 text-xs hover:text-fsociety-primary transition-colors font-mono flex items-center mx-auto"
-        >
-          <span className="mr-1">{showPasswordHint ? '▲' : '▼'}</span>
-          {showPasswordHint ? 'HIDE HINT' : 'NEED A HINT?'}
-        </button>
-        
-        {showPasswordHint && (
-          <motion.div 
-            className="mt-3 p-3 bg-fsociety-muted rounded text-xs font-mono text-gray-400 text-left"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            transition={{ duration: 0.3 }}
-          >
-            <p>Try these credentials:</p>
-            <ul className="list-disc list-inside mt-1 space-y-1">
-              <li>username: <span className="text-fsociety-primary">elliot</span> / password: <span className="text-fsociety-primary">mrrobot</span></li>
-              <li>username: <span className="text-fsociety-primary">darlene</span> / password: <span className="text-fsociety-primary">fsociety</span></li>
-              <li>username: <span className="text-fsociety-primary">admin</span> / password: <span className="text-fsociety-primary">admin</span></li>
-            </ul>
-          </motion.div>
-        )}
-      </motion.div>
     </motion.div>
   );
 };
