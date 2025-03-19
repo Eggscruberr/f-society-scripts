@@ -13,13 +13,17 @@ export interface User {
   role: string;
 }
 
-// MySQL connection info
-// In a production app, these would be in environment variables
+// Connection info - these would be environment variables in production
 const API_URL = '/api';
 
 export const login = async (username: string, password: string): Promise<boolean> => {
   try {
-    // Sanitize inputs
+    // Input validation
+    if (!username || !password) {
+      throw new Error("Username and password are required");
+    }
+    
+    // Prevent SQL injection - only allow alphanumeric and underscore characters
     if (!username.match(/^[a-zA-Z0-9_]+$/)) {
       throw new Error("Invalid username format");
     }
@@ -27,12 +31,12 @@ export const login = async (username: string, password: string): Promise<boolean
     // Hash the password with SHA-256 before sending (adds client-side security layer)
     const hashedPassword = CryptoJS.SHA256(password).toString();
     
-    // In a real application, this would be a fetch to your backend API
-    // Here we simulate a backend API call that would talk to MySQL
+    // In production, this would connect to a real MySQL server
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-CSRF-Token': generateCSRFToken(), // CSRF protection
       },
       body: JSON.stringify({
         username,
@@ -42,11 +46,13 @@ export const login = async (username: string, password: string): Promise<boolean
     });
     
     if (!response.ok) {
-      // Check for specific error responses
+      // Handle specific error responses
       if (response.status === 401) {
         throw new Error("Invalid credentials");
       } else if (response.status === 429) {
         throw new Error("Too many login attempts. Please try again later.");
+      } else if (response.status === 403) {
+        throw new Error("Access forbidden");
       }
       throw new Error(`Server error: ${response.statusText}`);
     }
@@ -66,12 +72,15 @@ export const login = async (username: string, password: string): Promise<boolean
       };
       
       // Encrypt the user info before storing
+      const encryptionKey = generateEncryptionKey(); // Generate a unique key per session
       const encryptedUserInfo = CryptoJS.AES.encrypt(
         JSON.stringify(userInfo),
-        'fsociety_secret_key' // In a real app, use a secure key from environment variables
+        encryptionKey
       ).toString();
       
+      // Store the encrypted data and the key (in a secure HttpOnly cookie in production)
       localStorage.setItem(USER_KEY, encryptedUserInfo);
+      sessionStorage.setItem('encryption_key', encryptionKey); // In production, use HttpOnly cookies
       
       return true;
     }
@@ -79,25 +88,80 @@ export const login = async (username: string, password: string): Promise<boolean
     return false;
   } catch (error) {
     console.error('Login error:', error);
-    
-    // Log the error but don't expose details to the user
     toast.error("Authentication failed");
-    
     return false;
   }
 };
 
-export const logout = (): void => {
-  // Clear local storage
-  localStorage.removeItem(USER_KEY);
+// Generate a random encryption key
+const generateEncryptionKey = (): string => {
+  return CryptoJS.lib.WordArray.random(16).toString();
+};
+
+// Generate a CSRF token
+const generateCSRFToken = (): string => {
+  const token = sessionStorage.getItem('csrf_token');
+  if (token) return token;
   
-  // In a real app, also invalidate the token on the server
+  const newToken = CryptoJS.lib.WordArray.random(16).toString();
+  sessionStorage.setItem('csrf_token', newToken);
+  return newToken;
+};
+
+export const logout = (): void => {
+  // Clear client-side storage
+  localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem('encryption_key');
+  sessionStorage.removeItem('csrf_token');
+  
+  // Invalidate the token on the server (in production)
   fetch(`${API_URL}/logout`, {
     method: 'POST',
+    headers: {
+      'X-CSRF-Token': generateCSRFToken(),
+    },
     credentials: 'include',
   }).catch(err => {
     console.error('Logout error:', err);
   });
+};
+
+export const getCurrentUser = (): User | null => {
+  try {
+    const encryptedUserStr = localStorage.getItem(USER_KEY);
+    if (!encryptedUserStr) return null;
+    
+    const encryptionKey = sessionStorage.getItem('encryption_key');
+    if (!encryptionKey) {
+      // If encryption key is missing, force logout
+      logout();
+      return null;
+    }
+    
+    // Decrypt the user info
+    const decryptedBytes = CryptoJS.AES.decrypt(
+      encryptedUserStr,
+      encryptionKey
+    );
+    const userStr = decryptedBytes.toString(CryptoJS.enc.Utf8);
+    
+    if (!userStr) return null;
+    
+    const user = JSON.parse(userStr) as User;
+    
+    // Verify token hasn't been tampered with (would need signature verification in production)
+    if (!user.token || !user.tokenExpiry) {
+      logout();
+      return null;
+    }
+    
+    return user;
+  } catch (e) {
+    console.error('Failed to parse user from localStorage', e);
+    // If there's an error, clear the corrupt data
+    logout();
+    return null;
+  }
 };
 
 export const isAuthenticated = (): boolean => {
@@ -120,29 +184,6 @@ export const isAuthenticated = (): boolean => {
   }
 };
 
-export const getCurrentUser = (): User | null => {
-  try {
-    const encryptedUserStr = localStorage.getItem(USER_KEY);
-    if (!encryptedUserStr) return null;
-    
-    // Decrypt the user info
-    const decryptedBytes = CryptoJS.AES.decrypt(
-      encryptedUserStr,
-      'fsociety_secret_key' // Should match the encryption key
-    );
-    const userStr = decryptedBytes.toString(CryptoJS.enc.Utf8);
-    
-    if (!userStr) return null;
-    
-    return JSON.parse(userStr) as User;
-  } catch (e) {
-    console.error('Failed to parse user from localStorage', e);
-    // If there's an error, clear the corrupt data
-    localStorage.removeItem(USER_KEY);
-    return null;
-  }
-};
-
 export const refreshToken = async (): Promise<boolean> => {
   try {
     const user = getCurrentUser();
@@ -154,7 +195,8 @@ export const refreshToken = async (): Promise<boolean> => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          'Authorization': `Bearer ${user.token}`,
+          'X-CSRF-Token': generateCSRFToken(),
         },
         credentials: 'include',
       });
@@ -175,10 +217,11 @@ export const refreshToken = async (): Promise<boolean> => {
           tokenExpiry: tokenExpiry
         };
         
-        // Encrypt and store
+        // Re-encrypt with the current encryption key
+        const encryptionKey = sessionStorage.getItem('encryption_key') || generateEncryptionKey();
         const encryptedUserInfo = CryptoJS.AES.encrypt(
           JSON.stringify(updatedUser),
-          'fsociety_secret_key'
+          encryptionKey
         ).toString();
         
         localStorage.setItem(USER_KEY, encryptedUserInfo);
@@ -190,6 +233,7 @@ export const refreshToken = async (): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Token refresh error:', error);
+    logout(); // Force logout on error
     return false;
   }
 };
@@ -199,6 +243,7 @@ export const hasRole = (requiredRole: string): boolean => {
   const user = getCurrentUser();
   if (!user) return false;
   
+  // In production, verify role with the server for critical operations
   return user.role === requiredRole;
 };
 
@@ -207,7 +252,45 @@ export const initAuth = (): void => {
   // Check token validity every minute
   setInterval(() => {
     if (isAuthenticated()) {
-      refreshToken().catch(console.error);
+      refreshToken().catch(err => {
+        console.error('Token refresh failed:', err);
+        logout(); // Force logout on persistent errors
+      });
+    }
+  }, 60000);
+  
+  // Add event listeners for security
+  window.addEventListener('storage', (event) => {
+    // Detect if localStorage was modified from another tab/window
+    if (event.key === USER_KEY) {
+      // Force reauthentication
+      window.location.reload();
+    }
+  });
+};
+
+// For session activity tracking
+let lastActivity = Date.now();
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+// Set up inactivity monitoring
+export const setupInactivityMonitor = (): void => {
+  const resetTimer = () => {
+    lastActivity = Date.now();
+  };
+  
+  // Set up activity listeners
+  ['mousedown', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+    document.addEventListener(event, resetTimer, true);
+  });
+  
+  // Check for inactivity every minute
+  setInterval(() => {
+    if (isAuthenticated() && (Date.now() - lastActivity > INACTIVITY_TIMEOUT)) {
+      toast.info("Session expired due to inactivity");
+      logout();
+      window.location.href = '/';
     }
   }, 60000);
 };
+
