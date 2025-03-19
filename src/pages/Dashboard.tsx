@@ -7,6 +7,7 @@ import GlitchText from '@/components/GlitchText';
 import { getCurrentUser, isAuthenticated } from '@/lib/auth';
 import { getScripts, Script } from '@/lib/scripts';
 import { Search, Filter, Cpu } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
   const [scripts, setScripts] = useState<Script[]>([]);
@@ -68,24 +69,73 @@ const Dashboard: React.FC = () => {
   const categories = ['all', 'exploit', 'reconnaissance', 'utility', 'cryptography'];
   const languages = ['all', 'python', 'bash', 'javascript', 'ruby'];
 
+  // Staggered animation for script cards
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { 
+      opacity: 1,
+      transition: { 
+        staggerChildren: 0.1,
+        delayChildren: 0.3
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.5
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-fsociety-dark overflow-x-hidden">
+    <motion.div 
+      className="min-h-screen bg-fsociety-dark overflow-x-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       <Navbar />
       
-      <main className="pt-28 pb-16 px-4 md:px-8">
+      <motion.main 
+        className="pt-28 pb-16 px-4 md:px-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
         <div className="max-w-7xl mx-auto">
-          <header className="mb-10">
+          <motion.header 
+            className="mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold text-white">
+                <motion.h1 
+                  className="text-3xl font-bold text-white"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
                   Welcome, <span className="text-fsociety-primary font-mono">{user?.username}</span>
-                </h1>
-                <p className="text-gray-400 mt-2">
+                </motion.h1>
+                <motion.p 
+                  className="text-gray-400 mt-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
                   Access and download our custom scripts for your operations
-                </p>
+                </motion.p>
               </div>
               
-              <div className="relative mt-4 md:mt-0">
+              <motion.div 
+                className="relative mt-4 md:mt-0"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search size={18} className="text-gray-500" />
                 </div>
@@ -96,10 +146,15 @@ const Dashboard: React.FC = () => {
                   placeholder="Search scripts..."
                   className="pl-10 pr-4 py-2 bg-fsociety-secondary border border-fsociety-muted rounded-md text-white w-full md:w-64 focus:border-fsociety-primary focus:outline-none transition-colors"
                 />
-              </div>
+              </motion.div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-3">
+            <motion.div 
+              className="flex flex-wrap items-center gap-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
               <div className="flex items-center mr-2">
                 <Filter size={16} className="text-gray-500 mr-2" />
                 <span className="text-sm text-gray-400">Filter:</span>
@@ -136,16 +191,26 @@ const Dashboard: React.FC = () => {
                   </select>
                 </div>
               </div>
-            </div>
-          </header>
+            </motion.div>
+          </motion.header>
           
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
+            <motion.div 
+              className="flex flex-col items-center justify-center py-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
               <Cpu size={40} className="text-fsociety-primary animate-pulse mb-4" />
               <p className="text-gray-400 font-mono">LOADING SCRIPTS...</p>
-            </div>
+            </motion.div>
           ) : filteredScripts.length === 0 ? (
-            <div className="text-center py-16 bg-fsociety-secondary bg-opacity-30 rounded-lg border border-fsociety-muted">
+            <motion.div 
+              className="text-center py-16 bg-fsociety-secondary bg-opacity-30 rounded-lg border border-fsociety-muted"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
               <div className="inline-block p-3 bg-fsociety-muted rounded-full mb-4">
                 <Search size={24} className="text-gray-400" />
               </div>
@@ -153,18 +218,29 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-400">
                 Try adjusting your search or filters to find what you're looking for
               </p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+            >
               {filteredScripts.map((script) => (
                 <ScriptCard key={script.id} script={script} />
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
-      </main>
+      </motion.main>
       
-      <footer className="border-t border-fsociety-muted py-6 mt-auto">
+      <motion.footer 
+        className="border-t border-fsociety-muted py-6 mt-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0">
@@ -179,8 +255,8 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      </footer>
-    </div>
+      </motion.footer>
+    </motion.div>
   );
 };
 
