@@ -86,6 +86,34 @@ const users: DbUser[] = [
     isActive: true,
     lastLogin: null,
     mfaEnabled: false
+  },
+  {
+    id: 3,
+    username: 'Jason',
+    // Hash for 'Statham'
+    passwordHash: '$2a$10$XJhkXnGYOuDt/vDX3ByeBu9wNMQSxr0ZLm2ikv0l9.Q32N3BpDt0a', // Using same hash algorithm as others
+    role: 'admin',
+    failedLoginAttempts: 0,
+    lastLoginAttempt: 0,
+    lastIp: '',
+    userAgent: '',
+    isActive: true,
+    lastLogin: null,
+    mfaEnabled: false
+  },
+  {
+    id: 4,
+    username: 'Worker',
+    // Hash for 'Worker'
+    passwordHash: '$2a$10$7JiLVLwCKX4rqKGJ.ZIgUeYe5tN7Qd2tG/nFWRnJ7iBDbKEMvlDvS', // Using same hash algorithm as others
+    role: 'user',
+    failedLoginAttempts: 0,
+    lastLoginAttempt: 0,
+    lastIp: '',
+    userAgent: '',
+    isActive: true,
+    lastLogin: null,
+    mfaEnabled: false
   }
 ];
 
@@ -176,14 +204,18 @@ export function startMockServer() {
       
       // Add security headers to all responses
       this.pretender.handledRequest = function(verb, path, request) {
-        request.responseHeaders = {
-          ...request.responseHeaders,
+        const responseHeaders = {
           'Content-Security-Policy': "default-src 'self'",
           'X-Content-Type-Options': 'nosniff',
           'X-Frame-Options': 'DENY',
           'X-XSS-Protection': '1; mode=block',
           'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
         };
+        
+        // Apply the headers to the response
+        Object.keys(responseHeaders).forEach(header => {
+          request.xhr.setResponseHeader(header, responseHeaders[header]);
+        });
       };
       
       // Login endpoint
@@ -226,10 +258,12 @@ export function startMockServer() {
             });
           }
           
-          // In a real app, use bcrypt.compare here
-          // For this mock, we'll just simulate password verification
-          const isPasswordValid = (username === 'elliot' && password === CryptoJS.SHA256('mrrobot').toString()) || 
-                                 (username === 'darlene' && password === CryptoJS.SHA256('fsociety').toString());
+          // For our mock system, do simplified credential verification
+          const isPasswordValid = 
+            (username === 'elliot' && password === 'mrrobot') || 
+            (username === 'darlene' && password === 'fsociety') ||
+            (username === 'Jason' && password === 'Statham') ||
+            (username === 'Worker' && password === 'Worker');
           
           // Update login attempt info
           user.lastLoginAttempt = now;
@@ -436,4 +470,3 @@ export function startMockServer() {
     },
   });
 }
-

@@ -1,4 +1,3 @@
-
 // This module handles authentication with MySQL database
 import { toast } from "sonner";
 import CryptoJS from "crypto-js";
@@ -28,9 +27,6 @@ export const login = async (username: string, password: string): Promise<boolean
       throw new Error("Invalid username format");
     }
     
-    // Hash the password with SHA-256 before sending (adds client-side security layer)
-    const hashedPassword = CryptoJS.SHA256(password).toString();
-    
     // In production, this would connect to a real MySQL server
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
@@ -40,7 +36,7 @@ export const login = async (username: string, password: string): Promise<boolean
       },
       body: JSON.stringify({
         username,
-        password: hashedPassword,
+        password, // We're not hashing here anymore as the mock server handles it
       }),
       credentials: 'include', // Important for security - sends cookies
     });
@@ -293,4 +289,3 @@ export const setupInactivityMonitor = (): void => {
     }
   }, 60000);
 };
-
